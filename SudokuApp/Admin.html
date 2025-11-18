@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f9f9f9;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+      #form-container {
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        padding: 28px 32px;
+        width: 400px;
+      }
+      h1 {
+        font-size: 24px;
+        color: #333;
+        text-align: center;
+        margin-top: 0;
+        margin-bottom: 24px;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        font-weight: bold;
+        color: #333;
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box; /* Important */
+        font-size: 14px;
+        font-family: monospace;
+      }
+      button {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        font-weight: bold;
+        color: white;
+        background-color: #28a745; /* Green */
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      button:hover {
+        background-color: #218838;
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      #status-area {
+        margin-top: 20px;
+        text-align: center;
+        font-size: 14px;
+      }
+      .loading { color: #555; }
+      .success { color: green; font-weight: bold; }
+      .error { color: red; font-weight: bold; }
+      .nav-link {
+        display: block;
+        text-align: center;
+        margin-top: 20px;
+        font-size: 12px;
+        color: #4b38d6;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="form-container">
+      <h1>Admin: Update Logo IDs</h1>
+      <form id="admin-form">
+        
+        <div class="form-group">
+          <label for="easy">Easy Level ID:</label>
+          <input type="text" id="easy" name="easy">
+        </div>
+        
+        <div class="form-group">
+          <label for="medium">Medium Level ID:</label>
+          <input type="text" id="medium" name="medium">
+        </div>
+        
+        <div class="form-group">
+          <label for="hard">Hard Level ID:</label>
+          <input type="text" id="hard" name="hard">
+        </div>
+        
+        <div class="form-group">
+          <label for="evil">Evil Level ID:</label>
+          <input type="text" id="evil" name="evil">
+        </div>
+        
+        <button type="submit" id="save-btn">Save IDs</button>
+        
+      </form>
+      
+      <div id="status-area"></div>
+      
+      <a href="<?= ScriptApp.getService().getUrl() ?>" class="nav-link">Go to Generator &raquo;</a>
+      
+    </div>
+
+    <script>
+      const form = document.getElementById("admin-form");
+      const statusDiv = document.getElementById("status-area");
+      const button = document.getElementById("save-btn");
+
+      // 1. Load current IDs when the page opens
+      document.addEventListener("DOMContentLoaded", () => {
+        statusDiv.className = "loading";
+        statusDiv.textContent = "Loading current IDs...";
+        google.script.run
+          .withSuccessHandler(onLoadSuccess)
+          .withFailureHandler(onFailure)
+          .getLogoIds();
+      });
+
+      // 2. Handle form submission
+      form.addEventListener("submit", function(e) {
+        e.preventDefault(); 
+        
+        button.disabled = true;
+        statusDiv.className = "loading";
+        statusDiv.textContent = "Saving...";
+
+        const formData = {
+          easy: form.elements.easy.value,
+          medium: form.elements.medium.value,
+          hard: form.elements.hard.value,
+          evil: form.elements.evil.value,
+        };
+
+        google.script.run
+          .withSuccessHandler(onSaveSuccess)
+          .withFailureHandler(onFailure)
+          .saveLogoIds(formData);
+      });
+      
+      // 3. Callbacks
+      function onLoadSuccess(ids) {
+        form.elements.easy.value = ids.Easy || "";
+        form.elements.medium.value = ids.Medium || "";
+        form.elements.hard.value = ids.Hard || "";
+        form.elements.evil.value = ids.Evil || "";
+        statusDiv.className = "";
+        statusDiv.textContent = "";
+      }
+      
+      function onSaveSuccess(message) {
+        statusDiv.className = "success";
+        statusDiv.textContent = message;
+        button.disabled = false;
+        
+        // Clear message after 3 seconds
+        setTimeout(() => {
+          statusDiv.className = "";
+          statusDiv.textContent = "";
+        }, 3000);
+      }
+
+      function onFailure(error) {
+        statusDiv.className = "error";
+        statusDiv.textContent = `Error: ${error.message}`;
+        button.disabled = false;
+      }
+    </script>
+  </body>
+</html>

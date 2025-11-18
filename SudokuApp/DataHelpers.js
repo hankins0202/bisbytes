@@ -3,6 +3,14 @@
  * Contains functions for loading quotes from the spreadsheet and images from Drive.
  **************************************/
 
+// --- Define Default IDs as a fallback ---
+const DEFAULT_LOGO_IDS = {
+  Easy: "1jilJWDsOmLZQQnjqUYGLTy9wIf2a2y6i",
+  Medium: "1jcCyFBmbdpoDICWlhwFf-qN6nN61kbTmBF5q",
+  Hard: "1Nm8EaLX3iGqO9fkyus9wc0_ndX-Wmyo6",
+  Evil: "1PMVP2iX-3QXlqB-8Mtvu55re-mqCrtWE"
+};
+
 /**
  * Helper to safely load and encode image files from Google Drive into base64 format 
  * for embedding in HTML.
@@ -64,5 +72,55 @@ function getAllQuotes(sheetName, spreadsheetUrl) {
       "The struggle you're in today is developing the strength you need for tomorrow", 
       "Failure is not the opposite of success, it’s part of it" 
     ];
+  }
+}
+
+/**
+ * NEW: Fetches Logo IDs from script properties.
+ * Falls back to hardcoded defaults if properties aren't set.
+ */
+function getLogoIds() {
+  const properties = PropertiesService.getScriptProperties();
+  const easyId = properties.getProperty('EASY_LOGO_ID');
+  
+  // If 'Easy' isn't set, assume none are. Load defaults and save them.
+  if (!easyId) {
+    Logger.log("No custom logo IDs found. Loading and saving defaults.");
+    properties.setProperties({
+      'EASY_LOGO_ID': DEFAULT_LOGO_IDS.Easy,
+      'MEDIUM_LOGO_ID': DEFAULT_LOGO_IDS.Medium,
+      'HARD_LOGO_ID': DEFAULT_LOGO_IDS.Hard,
+      'EVIL_LOGO_ID': DEFAULT_LOGO_IDS.Evil
+    });
+    return DEFAULT_LOGO_IDS;
+  }
+  
+  // Return saved properties
+  return {
+    Easy: easyId,
+    Medium: properties.getProperty('MEDIUM_LOGO_ID'),
+    Hard: properties.getProperty('HARD_LOGO_ID'),
+    Evil: properties.getProperty('EVIL_LOGO_ID')
+  };
+}
+
+/**
+ * NEW: Saves new Logo IDs to script properties.
+ * Called by Admin.html
+ */
+function saveLogoIds(ids) {
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    properties.setProperties({
+      'EASY_LOGO_ID': ids.easy,
+      'MEDIUM_LOGO_ID': ids.medium,
+      'HARD_LOGO_ID': ids.hard,
+      'EVIL_LOGO_ID': ids.evil
+    });
+    Logger.log("New Logo IDs saved successfully.");
+    return "✅ IDs saved successfully!";
+  } catch (e) {
+    Logger.log(`Error saving IDs: ${e.message}`);
+    throw new Error(`Failed to save IDs: ${e.message}`);
   }
 }

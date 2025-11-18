@@ -11,9 +11,16 @@ const QUOTES_SHEET_NAME = "Quotes";
 /**
  * Main web app entry point.
  * This function serves the user interface (Input.html) to the browser.
+ * It can also route to the 'Admin.html' page.
  */
 function doGet(e) {
-  return HtmlService.createTemplateFromFile('Input')
+  let templateName = 'Input'; // Default page
+  
+  if (e.parameter.page && e.parameter.page === 'admin') {
+    templateName = 'Admin'; // Route to admin page
+  }
+  
+  return HtmlService.createTemplateFromFile(templateName)
     .evaluate()
     .setTitle('Sudoku Batch Generator')
     .setSandboxMode(HtmlService.SandboxMode.IFRAME);
@@ -58,12 +65,10 @@ function generateSudokuBatch(formData) {
 
   // 3. Load Data (Quotes and Banners) (Logic from DataHelpers.gs)
   const allQuotes = getAllQuotes(QUOTES_SHEET_NAME, QUOTES_SPREADSHEET_URL); 
-  const imageIds = {
-    Easy: "1jilJWDsOmLZQQnjqUYGLTy9wIf2a2y6i",
-    Medium: "1jcCyFBmbdpoDICWlhwFf-qN6nN61kbTmBF5q",
-    Hard: "1Nm8EaLX3iGqO9fkyus9wc0_ndX-Wmyo6",
-    Evil: "1PMVP2iX-3QXlqB-8Mtvu55re-mqCrtWE"
-  };
+  
+  // --- MODIFICATION: Load IDs from PropertiesService ---
+  const imageIds = getLogoIds(); // Calls helper function in DataHelpers.gs
+  // --- END MODIFICATION ---
 
   const banners = {};
   for (const level in imageIds) {
