@@ -1,45 +1,64 @@
 /**************************************
  * BIS BYTES — SUDOKU GENERATOR
  * MAIN ORCHESTRATOR FILE
- * This file orchestrates the data gathering and performs server-side PDF generation.
+ * - doGet(): Serves the Input.html user interface.
+ * - generateSudokuBatch(): Runs the PDF generation based on user input.
  **************************************/
 
 const QUOTES_SPREADSHEET_URL = "https://docs.google.com/spreadsheets/by/d/1_-U00q6GmLHiSdwVh3ASMT5Mt_F5LC3-T8VO3ISDxZ8/edit?usp=sharing";
 const QUOTES_SHEET_NAME = "Quotes";
 
 /**
- * Main function to generate the complete Sudoku batch PDF.
- * This function now loads the data, generates the HTML string using HtmlHelpers.gs,
- * and converts the string directly into a PDF file saved to Google Drive (server-side).
- * * The URL and ID of the newly created PDF are logged to the console upon success.
+ * Main web app entry point.
+ * This function serves the user interface (Input.html) to the browser.
  */
-function generateSudokuBatch() {
-  const levels = ["Easy", "Medium"];
-  const puzzlesPerLevel = 50; // 100 total puzzles
+function doGet(e) {
+  return HtmlService.createTemplateFromFile('Input')
+    .evaluate()
+    .setTitle('Sudoku Batch Generator')
+    .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+}
+
+/**
+ * Runs the complete Sudoku batch PDF generation (server-side).
+ * This function is called from the Input.html form via google.script.run.
+ *
+ * @param {object} formData An object from the HTML form (e.g., {levels: ["Easy", "Hard"], quantity: "20"})
+ * @returns {string} The URL of the newly created PDF file.
+ */
+function generateSudokuBatch(formData) {
+  
+  // 1. Validate User Input
+  const levels = formData.levels;
+  const puzzlesPerLevel = parseInt(formData.quantity, 10);
+
+  if (!levels || levels.length === 0) {
+    throw new Error("No levels selected. Please select at least one level.");
+  }
+  if (isNaN(puzzlesPerLevel) || puzzlesPerLevel <= 0) {
+    throw new Error("Invalid quantity. Please enter a number greater than 0.");
+  }
+  
   const totalPuzzles = levels.length * puzzlesPerLevel;
+  Logger.log(`Starting batch job: ${totalPuzzles} puzzles (${levels.join(', ')})`);
 
   const puzzlesByLevel = {};
   const solutionsByLevel = {};
 
-  // 1. Generate all puzzles & solutions (Logic from Sudoku.gs)
-  // ... (existing code) ...
+  // 2. Generate all puzzles & solutions (Logic from Sudoku.gs)
   for (const level of levels) {
     puzzlesByLevel[level] = [];
     solutionsByLevel[level] = [];
-
     for (let i = 0; i < puzzlesPerLevel; i++) {
-      // Calls generatePuzzle, which is now defined in Sudoku.gs
       const { puzzle, solution } = generatePuzzle(level);
       puzzlesByLevel[level].push(puzzle);
       solutionsByLevel[level].push(solution);
     }
   }
 
-  // 2. Load Data (Quotes and Banners) (Logic from DataHelpers.gs)
-  // ... (existing code) ...
+  // 3. Load Data (Quotes and Banners) (Logic from DataHelpers.gs)
   const allQuotes = getAllQuotes(QUOTES_SHEET_NAME, QUOTES_SPREADSHEET_URL); 
   const imageIds = {
-    // IMPORTANT: Ensure these Drive File IDs are correct and accessible by your script.
     Easy: "1jilJWDsOmLZQQnjqUYGLTy9wIf2a2y6i",
     Medium: "1jcCyFBmbdpoDICWlhwFf-qN6nN61kbTmBF5q",
     Hard: "1Nm8EaLX3iGqO9fkyus9wc0_ndX-Wmyo6",
@@ -48,68 +67,37 @@ function generateSudokuBatch() {
 
   const banners = {};
   for (const level in imageIds) {
-    // Calls getBase64Image, which is now defined in DataHelpers.gs
     banners[level] = getBase64Image(imageIds[level]);
   }
 
-  // 3. Prepare data object for PDF generation
-  // ... (existing code) ...
+  // 4. Prepare data object for PDF generation
   const data = {
     puzzlesByLevel, solutionsByLevel, banners, allQuotes, levels, puzzlesPerLevel, totalPuzzles
   };
 
   try {
-    // 4. Get the complete HTML content string (Logic from HtmlHelpers.gs)
+    // 5. Get the complete HTML content string (Logic from HtmlHelpers.gs)
     const htmlContent = getPdfHtml(data);
     
-    // 5. Convert HTML string to a PDF Blob with a timestamped file name
+    // 6. Convert HTML string to a PDF Blob
     const now = new Date();
-    // Format: YYYY-MM-DD_HHMM
     const fileName = `Sudoku_Booklet_${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}_${now.getHours()}${now.getMinutes()}.pdf`;
-
-    // -----------------------------------------------------------------
-    // CRITICAL FIX: 
-    // We must create the HTML blob, THEN call .getAs(MimeType.PDF) to *convert* it,
-    // and THEN set the name on the *final PDF blob*.
-    // -----------------------------------------------------------------
+    
     const htmlBlob = Utilities.newBlob(htmlContent, MimeType.HTML);
     const pdfBlob = htmlBlob.getAs(MimeType.PDF).setName(fileName);
-    // -----------------------------------------------------------------
 
-    // 6. Save the PDF to Google Drive (Root folder for simplicity)
+    // 7. Save the PDF to Google Drive
     const pdfFile = DriveApp.createFile(pdfBlob);
     
-    // 7. Log the URL and ID to the execution log (as requested)
-    // ... (existing code) ...
-    Logger.log("=========================================");
-    Logger.log(`✅ NEW PDF CREATED: ${pdfFile.getName()}`);
-    Logger.log(`🔗 FILE URL: ${pdfFile.getUrl()}`);
-    Logger.log(`🆔 FILE ID: ${pdfFile.getId()}`);
-    Logger.log("=========================================");
-
-    // 8. Return a success message to the user
-    // ... (existing code) ...
-    return HtmlService.createHtmlOutput(
-      `<div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
-        <h2 style="color: #4b38d6;">✅ PDF Generation Complete!</h2>
-        <p style="font-size: 16px;">The file "<strong>${pdfFile.getName()}</strong>" (Total ${totalPuzzles} puzzles) has been saved to your Google Drive.</p>
-        <p style="font-size: 14px;">The **File URL** and **ID** have been copied to the Apps Script **Execution Log**.</p>
-      </div>`
-    )
-    .setWidth(500)
-    .setHeight(200);
+    const fileUrl = pdfFile.getUrl();
+    Logger.log(`✅ NEW PDF CREATED: ${fileName} | URL: ${fileUrl}`);
+    
+    // 8. Return the URL to the client-side success handler
+    return fileUrl;
 
   } catch (e) {
-    // Handle any error during PDF generation
-    // ... (existing code) ...
-    Logger.log(`PDF Generation Failed: ${e.toString()}`);
-    return HtmlService.createHtmlOutput(
-      `<div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
-        <h2 style="color: red;">❌ Error During PDF Generation</h2>
-        <p style="font-size: 14px;">An error occurred: ${e.message}. Check the Apps Script logs for details.</p>
-      </div>`
-    )
-    .setWidth(500)
-    .setHeight(150);
+    Logger.log(`❌ PDF Generation Failed: ${e.toString()}`);
+    // Propagate the error back to the client-side failure handler
+    throw new Error(`PDF Generation Failed: ${e.message}`);
   }
 }

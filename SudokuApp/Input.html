@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f9f9f9;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+      #form-container {
+        background-color: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        padding: 28px 32px;
+        width: 320px;
+      }
+      h1 {
+        font-size: 24px;
+        color: #4b38d6;
+        text-align: center;
+        margin-top: 0;
+        margin-bottom: 24px;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        font-weight: bold;
+        color: #333;
+        display: block;
+        margin-bottom: 8px;
+      }
+      .checkbox-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .checkbox-item {
+        display: flex;
+        align-items: center;
+      }
+      input[type="checkbox"] {
+        margin-right: 8px;
+        accent-color: #4b38d6;
+      }
+      input[type="number"] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box; /* Important */
+        font-size: 16px;
+      }
+      button {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        font-weight: bold;
+        color: white;
+        background-color: #4b38d6;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      button:hover {
+        background-color: #3a2aaa;
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      #status-area {
+        margin-top: 20px;
+        text-align: center;
+        font-size: 14px;
+      }
+      .loading {
+        color: #555;
+      }
+      .success {
+        color: green;
+        font-weight: bold;
+      }
+      .error {
+        color: red;
+        font-weight: bold;
+      }
+      .success a {
+        color: #4b38d6;
+        text-decoration: none;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="form-container">
+      <h1>Sudoku Generator</h1>
+      <form id="generator-form">
+        
+        <div class="form-group">
+          <label>1. Select Levels:</label>
+          <div class="checkbox-group">
+            <div class="checkbox-item">
+              <input type="checkbox" id="easy" name="levels" value="Easy" checked>
+              <label for="easy">Easy</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="medium" name="levels" value="Medium" checked>
+              <label for="medium">Medium</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="hard" name="levels" value="Hard" checked>
+              <label for="hard">Hard</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="evil" name="levels" value="Evil" checked>
+              <label for="evil">Evil</label>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="quantity">2. Puzzles per Level:</label>
+          <input type="number" id="quantity" name="quantity" value="25" min="1" max="100">
+        </div>
+        
+        <button type="submit" id="generate-btn">Generate PDF</button>
+        
+      </form>
+      
+      <div id="status-area"></div>
+      
+    </div>
+
+    <script>
+      document.getElementById("generator-form").addEventListener("submit", function(e) {
+        e.preventDefault(); // Stop the form from submitting normally
+        
+        const form = e.target;
+        const statusDiv = document.getElementById("status-area");
+        const button = document.getElementById("generate-btn");
+
+        // 1. Get selected levels
+        const selectedLevels = [];
+        form.elements.levels.forEach(checkbox => {
+          if (checkbox.checked) {
+            selectedLevels.push(checkbox.value);
+          }
+        });
+
+        // 2. Get quantity
+        const quantity = form.elements.quantity.value;
+        
+        // 3. Basic validation
+        if (selectedLevels.length === 0) {
+          statusDiv.className = "error";
+          statusDiv.textContent = "Please select at least one level.";
+          return;
+        }
+
+        // 4. Disable button and show loading
+        button.disabled = true;
+        statusDiv.className = "loading";
+        statusDiv.innerHTML = "Generating PDF... <br> (This may take up to 60 seconds)";
+
+        const formData = {
+          levels: selectedLevels,
+          quantity: quantity
+        };
+
+        // 5. Call the server-side function
+        google.script.run
+          .withSuccessHandler(onSuccess)
+          .withFailureHandler(onFailure)
+          .generateSudokuBatch(formData);
+      });
+
+      function onSuccess(fileUrl) {
+        const statusDiv = document.getElementById("status-area");
+        const button = document.getElementById("generate-btn");
+        
+        statusDiv.className = "success";
+        statusDiv.innerHTML = `✅ Success! <br> <a href="${fileUrl}" target="_blank">Click here to open your PDF</a>`;
+        button.disabled = false;
+      }
+
+      function onFailure(error) {
+        const statusDiv = document.getElementById("status-area");
+        const button = document.getElementById("generate-btn");
+
+        statusDiv.className = "error";
+        statusDiv.textContent = `Error: ${error.message}`;
+        button.disabled = false;
+      }
+    </script>
+  </body>
+</html>
